@@ -1,48 +1,136 @@
 // Copyright (c) 2018 ml5
-//
+// 
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
 /* ===
-ml5 Example
-Image classification using MobileNet and p5.js
-This example uses a callback pattern to create the classifier
+ML5 Example
+KNN_Image
+KNN Image Classifier example with p5.js
 === */
 
-// Initialize the Image Classifier method with MobileNet. A callback needs to be passed.
-const classifier = ml5.imageClassifier('MobileNet', modelReady);
-
-// A variable to hold the image we want to classify
-let img;
+let knn;
+let video;
 
 function setup() {
   noCanvas();
-  // Load the image
-  img = createImg('images/bird.jpg', imageReady);
-  img.size(400, 400);
+  video = createCapture(VIDEO).parent('videoContainer');
+  // Create a KNN Image Classifier
+  knn = new ml5.KNNImageClassifier(3, 1, modelLoaded, video.elt);
+  createButtons();
 }
 
-// Change the status when the model loads.
-function modelReady(){
-  select('#status').html('Model Loaded')
-  imageReady();
+function createButtons() {
+  // Save and Load buttons
+  save = select('#save');
+  save.mousePressed(function() {
+    knn.save('test');
+  });
+
+ load = select('#load');
+ load.mousePressed(function() {
+    knn.load('test.json', updateExampleCounts);
+  });
+
+
+  // Train buttons
+  buttonA = select('#buttonA');
+  buttonA.mousePressed(function() {
+    train(1);
+  });
+
+  buttonB = select('#buttonB');
+  buttonB.mousePressed(function() {
+    train(2);
+  });
+
+  buttonC = select('#buttonC');
+  buttonC.mousePressed(function() {
+    train(3);
+  });
+  
+  
+  // Reset buttons
+  resetBtnA = select('#resetA');
+  resetBtnA.mousePressed(function() {
+    clearClass(1);
+    updateExampleCounts();
+  });
+
+  resetBtnB = select('#resetB');
+  resetBtnB.mousePressed(function() {
+    clearClass(2);
+    updateExampleCounts();
+  });
+
+  resetBtnC = select('#resetC');
+  resetBtnC.mousePressed(function() {
+    clearClass(3);
+    updateExampleCounts();
+  });
+  
+  // Predict Button
+  buttonPredict = select('#buttonPredict');
+  buttonPredict.mousePressed(predict);
 }
 
-// When the image has been loaded,
-// get a prediction for that image
-function imageReady() {
-  classifier.predict(img, gotResult);
-  // You can also specify the amount of classes you want
-  // classifier.predict(img, 10, gotResult);
+// A function to be called when the model has been loaded
+function modelLoaded() {
+  select('#loading').html('Model loaded!');
 }
 
-// A function to run when we get any errors and the results
-function gotResult(err, results) {
-  // Display error in the console
-  if (err) {
-    console.error(err);
+// Train the Classifier on a frame from the video.
+function train(category) {
+  let msg;
+  if (category == 1) {
+    msg = 'A';
+  } else if (category == 2) {
+    msg = 'B';
+  } else if (category == 3) {
+    msg = 'C';
   }
-  // The results are in an array ordered by probability.
-  select('#result').html(results[0].className);
-  select('#probability').html(nf(results[0].probability, 0, 2));
+  select('#training').html(msg);
+  knn.addImageFromVideo(category);
+  updateExampleCounts();
+}
+
+// Predict the current frame.
+function predict() {
+  knn.predictFromVideo(gotResults);
+}
+
+// Show the results
+function gotResults(results) {
+  let msg;
+
+  if (results.classIndex == 1) {
+    msg = 'A';
+  } else if (results.classIndex == 2) {
+    msg = 'B';
+  } else if (results.classIndex == 3) {
+    msg = 'C';
+  }
+  select('#result').html(msg);
+
+  // Update confidence
+  select('#confidenceA').html(results.confidences[1]);
+  select('#confidenceB').html(results.confidences[2]);
+  select('#confidenceC').html(results.confidences[3]);
+
+  setTimeout(function(){
+    predict();
+  }, 50);
+}
+
+// Clear the data in one class
+function clearClass(classIndex) {
+  knn.clearClass(classIndex);
+}
+
+// Update the example count for each class
+function updateExampleCounts() {
+  let counts = knn.getClassExampleCount();
+  select('#exampleA').html(counts[1]);
+  select('#exampleB').html(counts[2]);
+  select('#exampleC').html(counts[3]);
 }
